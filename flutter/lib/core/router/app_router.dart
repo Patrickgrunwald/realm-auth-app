@@ -6,36 +6,9 @@ import '../../features/auth/screens/splash_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
-
-// Platzhalter für Home (Phase 2)
-class _HomePlaceholderScreen extends StatelessWidget {
-  const _HomePlaceholderScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      appBar: AppBar(
-        title: const Text('Realm Auth'),
-        actions: [
-          Consumer(
-            builder: (context, ref, _) => IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () =>
-                  ref.read(authControllerProvider.notifier).signOut(),
-            ),
-          ),
-        ],
-      ),
-      body: const Center(
-        child: Text(
-          'Home — Phase 2',
-          style: TextStyle(color: Colors.white54, fontSize: 18),
-        ),
-      ),
-    );
-  }
-}
+import '../../features/feed/screens/feed_screen.dart';
+import '../../features/feed/screens/post_detail_screen.dart';
+import '../../features/post/models/post_model.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authControllerProvider);
@@ -86,7 +59,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/home',
-        builder: (context, state) => const _HomePlaceholderScreen(),
+        builder: (context, state) => const FeedScreen(),
+      ),
+      GoRoute(
+        path: '/post/:id',
+        builder: (context, state) {
+          final post = state.extra as PostModel?;
+          if (post == null) {
+            // Fallback: post not passed via extra — redirect to feed
+            return const FeedScreen();
+          }
+          return PostDetailScreen(post: post);
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
