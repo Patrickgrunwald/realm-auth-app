@@ -103,6 +103,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CameraScreen(),
       ),
       GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
         path: '/post/create',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
