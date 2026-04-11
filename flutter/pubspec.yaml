@@ -1,0 +1,51 @@
+name: realm_auth_app
+description: "Realm Auth - Social Video App"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Supabase
+  supabase_flutter: ^2.8.4
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # Camera & Video
+  camera: ^0.11.1
+  video_player: ^2.9.3
+  chewie: ^1.10.0
+
+  # Media
+  flutter_image_compress: ^2.4.0
+
+  # Storage & Security
+  flutter_secure_storage: ^9.2.4
+  path_provider: ^2.1.5
+
+  # UI
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  cupertino_icons: ^1.0.8
+
+  # Utilities
+  timeago: ^3.7.0
+  uuid: ^4.5.1
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
