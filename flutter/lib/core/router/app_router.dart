@@ -11,6 +11,8 @@ import '../../features/feed/screens/post_detail_screen.dart';
 import '../../features/post/models/post_model.dart';
 import '../../features/camera/screens/camera_screen.dart';
 import '../../features/post/screens/create_post_screen.dart';
+import '../../features/profile/screens/profile_screen.dart';
+import '../../features/shell/main_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authControllerProvider);
@@ -23,10 +25,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isAuthenticated = authState.isAuthenticated;
       final location = state.matchedLocation;
 
-      // Splash immer zulassen
       if (location == '/') return null;
 
-      // Öffentliche Routen
       const publicRoutes = ['/login', '/register', '/forgot-password'];
       final isPublicRoute = publicRoutes.contains(location);
 
@@ -59,20 +59,45 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const FeedScreen(),
-      ),
-      GoRoute(
-        path: '/post/:id',
-        builder: (context, state) {
-          final post = state.extra as PostModel?;
-          if (post == null) {
-            return const FeedScreen();
+
+      // ── Main App (mit Bottom Nav) ──
+      ShellRoute(
+        builder: (context, state, child) {
+          // Welcher Tab ist aktiv?
+          final loc = state.matchedLocation;
+          int index = 0;
+          if (loc.startsWith('/profile')) {
+            index = 2;
+          } else if (loc.startsWith('/home') || loc == '/home') {
+            index = 0;
           }
-          return PostDetailScreen(post: post);
+          return MainShell(currentIndex: index, child: child);
         },
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const FeedScreen(),
+            routes: [
+              GoRoute(
+                path: 'post/:id',
+                builder: (context, state) {
+                  final post = state.extra as PostModel?;
+                  return PostDetailScreen(post: post ?? PostModel.fromJson({}));
+                },
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) {
+              final userId = state.uri.queryParameters['userId'];
+              return ProfileScreen(userId: userId);
+            },
+          ),
+        ],
       ),
+
+      // ── Außerhalb der Shell (keine Bottom Nav) ──
       GoRoute(
         path: '/camera',
         builder: (context, state) => const CameraScreen(),
