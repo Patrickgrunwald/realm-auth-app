@@ -6,6 +6,7 @@ import '../widgets/feed_tab_bar.dart';
 import '../widgets/post_card.dart';
 import '../widgets/video_post_card.dart';
 import '../../post/models/post_model.dart';
+import '../../camera/screens/camera_screen.dart';
 
 class FeedScreen extends ConsumerWidget {
   const FeedScreen({super.key});
@@ -48,6 +49,14 @@ class FeedScreen extends ConsumerWidget {
             _FeedTab(feedType: _FeedType.fyp),
             _FeedTab(feedType: _FeedType.following),
           ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CameraScreen()),
+          ),
+          backgroundColor: const Color(0xFF6C63FF),
+          child: const Icon(Icons.add, color: Colors.white, size: 28),
         ),
       ),
     );

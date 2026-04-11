@@ -9,6 +9,8 @@ import '../../features/auth/screens/forgot_password_screen.dart';
 import '../../features/feed/screens/feed_screen.dart';
 import '../../features/feed/screens/post_detail_screen.dart';
 import '../../features/post/models/post_model.dart';
+import '../../features/camera/screens/camera_screen.dart';
+import '../../features/post/screens/create_post_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authControllerProvider);
@@ -66,10 +68,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final post = state.extra as PostModel?;
           if (post == null) {
-            // Fallback: post not passed via extra — redirect to feed
             return const FeedScreen();
           }
           return PostDetailScreen(post: post);
+        },
+      ),
+      GoRoute(
+        path: '/camera',
+        builder: (context, state) => const CameraScreen(),
+      ),
+      GoRoute(
+        path: '/post/create',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return CreatePostScreen(
+            mediaPath: extra?['mediaPath'] ?? '',
+            mediaType: extra?['mediaType'] ?? 'photo',
+          );
         },
       ),
     ],
