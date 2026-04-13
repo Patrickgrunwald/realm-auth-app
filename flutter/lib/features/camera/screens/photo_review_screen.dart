@@ -12,7 +12,7 @@ class PhotoReviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
+    final mediaPadding = MediaQuery.of(context).padding;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -24,13 +24,13 @@ class PhotoReviewScreen extends StatelessWidget {
                 ? Image.network(
                     filePath,
                     fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Container(
+                    errorBuilder: (_, __, ___) => Container(
                       color: Colors.black,
                       child: const Center(
                         child: Icon(Icons.broken_image, color: Colors.white54, size: 64),
                       ),
                     ),
-                    loadingBuilder: (context, child, loadingProgress) {
+                    loadingBuilder: (_, child, loadingProgress) {
                       if (loadingProgress == null) return child;
                       return Container(
                         color: Colors.black,
@@ -49,7 +49,7 @@ class PhotoReviewScreen extends StatelessWidget {
                 : Image.file(
                     File(filePath),
                     fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Container(
+                    errorBuilder: (_, __, ___) => Container(
                       color: Colors.black,
                       child: const Center(
                         child: Icon(Icons.broken_image, color: Colors.white54, size: 64),
@@ -63,111 +63,105 @@ class PhotoReviewScreen extends StatelessWidget {
             top: 0,
             left: 0,
             right: 0,
-            height: topPadding + 60,
             child: Container(
-              decoration: BoxDecoration(
+              padding: EdgeInsets.only(top: mediaPadding.top + 8),
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black87, Colors.transparent],
+                  colors: [Color(0xCC000000), Color(0x00000000)],
                 ),
               ),
-              child: SafeArea(
-                bottom: false,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                      onPressed: () => Navigator.pop(context),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const Text(
+                    'Neuer Beitrag',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const Text(
-                      'Beitrag erstellen',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 48),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 48), // balance the close button
+                ],
               ),
             ),
           ),
 
-          // Untere Leiste — FIXIERT AM UNTEREN RAND
+          // Untere Leiste — fixed at bottom with proper safe area
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: Container(
-              decoration: BoxDecoration(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: mediaPadding.bottom + 24,
+              ),
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withAlpha(230)],
+                  colors: [Color(0x00000000), Color(0xDD000000)],
                 ),
               ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Erneut Button
-                      TextButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.refresh, color: Colors.white70, size: 20),
-                        label: const Text(
-                          'Erneut',
-                          style: TextStyle(color: Colors.white70, fontSize: 15),
-                        ),
-                      ),
-
-                      // Weiter Button — VIEL SICHTBARER
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CreatePostScreen(
-                                mediaPath: filePath,
-                                mediaType: 'photo',
-                              ),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6C63FF),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(120, 48),
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          elevation: 4,
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Weiter',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            SizedBox(width: 6),
-                            Icon(Icons.arrow_forward, size: 18),
-                          ],
-                        ),
-                      ),
-                    ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Erneut Button
+                  TextButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.refresh, color: Colors.white70, size: 20),
+                    label: const Text(
+                      'Erneut',
+                      style: TextStyle(color: Colors.white70, fontSize: 15),
+                    ),
                   ),
-                ),
+
+                  // WEITER Button — large and prominent
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CreatePostScreen(
+                            mediaPath: filePath,
+                            mediaType: 'photo',
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6C63FF),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(130, 52),
+                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(26),
+                      ),
+                      elevation: 6,
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Weiter',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward, size: 20),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
