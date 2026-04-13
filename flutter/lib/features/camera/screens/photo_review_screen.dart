@@ -24,13 +24,13 @@ class PhotoReviewScreen extends StatelessWidget {
                 ? Image.network(
                     filePath,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (context, error, stackTrace) => Container(
                       color: Colors.black,
                       child: const Center(
                         child: Icon(Icons.broken_image, color: Colors.white54, size: 64),
                       ),
                     ),
-                    loadingBuilder: (_, child, loadingProgress) {
+                    loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
                       return Container(
                         color: Colors.black,
@@ -49,7 +49,7 @@ class PhotoReviewScreen extends StatelessWidget {
                 : Image.file(
                     File(filePath),
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (context, error, stackTrace) => Container(
                       color: Colors.black,
                       child: const Center(
                         child: Icon(Icons.broken_image, color: Colors.white54, size: 64),
