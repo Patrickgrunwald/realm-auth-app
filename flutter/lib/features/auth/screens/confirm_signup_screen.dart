@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
-import '../controllers/auth_controller.dart';
+import '../../../core/utils/browser_url.dart';
+import '../../../data/services/supabase_service.dart';
 
 class ConfirmSignupScreen extends ConsumerStatefulWidget {
   const ConfirmSignupScreen({super.key});
@@ -24,65 +26,55 @@ class _ConfirmSignupScreenState extends ConsumerState<ConfirmSignupScreen> {
   }
 
   Future<void> _confirmSignup() async {
-    // Supabase sendet Bestätigungslinks als:
-    // /confirm-signup?token=xxx&email=yyy
-    // oder als Hash: /confirm-signup#token=xxx&email=yyy
-    final uri = GoRouterState.of(context).uri;
+    try {
+      // Vollständige URL inkl. Hash-Fragment direkt vom Browser holen
+      // (GoRouter verschluckt das Fragment normalerweise)
+      final fullUrl = getBrowserUrl();
 
-    // Versuche query params (token, email)
-    var token = uri.queryParameters['token'];
-    var email = uri.queryParameters['email'];
+      if (fullUrl.isEmpty) {
+        _fail('Konnte URL nicht lesen. Bitte öffne den Bestätigungslink direkt im Browser.');
+        return;
+      }
 
-    // Fallback: Hash-Fragment (z.B. #token=xxx&email=yyy)
-    if ((token == null || token.isEmpty) && uri.fragment.isNotEmpty) {
-      final params = Uri.splitQueryString(uri.fragment);
-      token ??= params['token'];
-      email ??= params['email'];
+      // getSessionFromUrl parst #token=... automatisch in Query-Parameter
+      // Das Ergebnis wird nicht benötigt — wichtig ist der interne Session-Setzer
+      await SupabaseService.client.auth.getSessionFromUrl(
+        Uri.parse(fullUrl),
+        storeSession: true,
+      );
+
+      if (!mounted) return;
+
+      _succeed();
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      if (e.message.toLowerCase().contains('expired') ||
+          e.message.toLowerCase().contains('invalid') ||
+          e.message.toLowerCase().contains('otp_expired')) {
+        _fail('Der Bestätigungslink ist abgelaufen oder bereits verwendet. Bitte registriere dich erneut.');
+      } else {
+        _fail(e.message);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _fail('Fehler: ${e.toString()}');
     }
+  }
 
-    // Alternativ: token aus fullPath extrahieren wenn es im Pfad ist
-    if ((token == null || token.isEmpty)) {
-      final tokenMatch =
-          RegExp(r'[?&]token=([^&]+)').firstMatch(uri.toString());
-      token ??= tokenMatch?.group(1);
-    }
-
-    if (token == null || token.isEmpty) {
-      setState(() {
-        _isConfirming = false;
-        _errorMessage = 'Kein Bestätigungstoken gefunden. Bitte nutze den Link aus der E-Mail.';
-      });
-      return;
-    }
-
-    // E-Mail aus Query oder Hash
-    if (email == null || email.isEmpty) {
-      final emailMatch =
-          RegExp(r'[?&]email=([^&]+)').firstMatch(uri.toString());
-      email = emailMatch?.group(1);
-      // URL-decode
-      if (email != null) email = Uri.decodeComponent(email);
-    }
-
-    final result = await ref.read(authControllerProvider.notifier).confirmSignup(
-          token: token,
-          email: email ?? '',
-        );
-
-    if (!mounted) return;
-
+  void _fail(String msg) {
     setState(() {
       _isConfirming = false;
-      if (result) {
-        _success = true;
-        // Automatisch zum Login nach 3s
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) context.go('/login');
-        });
-      } else {
-        final err = ref.read(authControllerProvider).error;
-        _errorMessage = err ?? 'Unbekannter Fehler bei der Bestätigung.';
-      }
+      _errorMessage = msg;
+    });
+  }
+
+  void _succeed() {
+    setState(() {
+      _isConfirming = false;
+      _success = true;
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) context.go('/login');
+      });
     });
   }
 
