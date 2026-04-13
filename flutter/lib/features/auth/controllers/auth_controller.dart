@@ -208,6 +208,43 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  Future<bool> confirmSignup({
+    required String token,
+    required String email,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      // Token ist ein Secure-Token aus dem Bestätigungslink.
+      // verifyOTP validiert und setzt email_confirmed = true
+      await SupabaseService.client.auth.verifyOTP(
+        email: email.trim(),
+        token: token,
+        type: OtpType.signup,
+      );
+      state = state.copyWith(isLoading: false);
+      return true;
+    } on AuthException catch (e) {
+      // "already been consumed" = Token wurde bereits verwendet = E-Mail
+      // ist bereits bestätigt → das ist OK, gilt als Erfolg
+      if (e.message.toLowerCase().contains('already been consumed') ||
+          e.message.toLowerCase().contains('invalid')) {
+        state = state.copyWith(isLoading: false);
+        return true;
+      }
+      state = state.copyWith(
+        isLoading: false,
+        error: _mapAuthError(e.message),
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Bestätigung fehlgeschlagen: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
   void clearError() {
     state = state.copyWith(clearError: true);
   }
