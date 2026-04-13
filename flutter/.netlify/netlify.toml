@@ -1,0 +1,41 @@
+redirectsOrigin = "config"
+plugins = []
+headers = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "/Users/patrickgrunwald/workspace/realm-auth-app/flutter/build/web"
+publishOrigin = "config"
+commandOrigin = "config"
+base = "/Users/patrickgrunwald/workspace/realm-auth-app/flutter"
+command = "flutter build web --release"
+
+[build.environment]
+FLUTTER_VERSION = "3.41.6"
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]

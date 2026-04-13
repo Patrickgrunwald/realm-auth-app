@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Realm Auth — Social Video App">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Realm">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Realm</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!--
+    ╔══════════════════════════════════════════════════════╗
+    ║  FFmpeg.wasm — COOP/COEP Headers (REQUIRED)         ║
+    ║  SharedArrayBuffer braucht diese Cross-Origin-Policy ║
+    ╚══════════════════════════════════════════════════════╝
+  -->
+  <script>
+    // Required headers for SharedArrayBuffer (ffmpeg.wasm)
+    self.addEventListener('install', (event) => {
+      event.waitUntil(
+        self.skipWaiting()
+      );
+    });
+    self.addEventListener('activate', (event) => {
+      event.waitUntil(
+        self.clients.claim()
+      );
+    });
+  </script>
+
+  <!-- Preload ffmpeg.wasm core for faster init -->
+  <link rel="preload" href="https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg_core.js" as="script" crossorigin="anonymous">
+
+</head>
+<body>
+
+  <!-- FFmpeg WASM: loaded on-demand in video_compressor_web.dart -->
+  <script type="module">
+    // Pre-load ffmpeg core (lightweight, ~1MB)
+    // Full ffmpeg binary loaded only when compression starts
+    window.__FFMPEG_LOADED = false;
+    window.__FFMPEG_LOADING = false;
+
+    // Expose to Dart via window object
+    window.loadFFmpeg = async () => {
+      if (window.__FFMPEG_LOADED) return;
+      if (window.__FFMPEG_LOADING) return;
+
+      window.__FFMPEG_LOADING = true;
+      try {
+        const { createFFmpeg, fetchFile } = await import(
+          'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg.js'
+        );
+        window.__ffmpeg = createFFmpeg({
+          log: false,
+          corePath: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg_core.js',
+        });
+        await window.__ffmpeg.load();
+        window.__ffmpeg_fetchFile = fetchFile;
+        window.__FFMPEG_LOADED = true;
+        console.log('[FFmpeg] Loaded successfully');
+      } catch (e) {
+        console.error('[FFmpeg] Load failed:', e);
+        window.__FFMPEG_LOADED = false;
+        window.__FFMPEG_LOADING = false;
+        throw e;
+      }
+    };
+
+    // Expose video compression function to Dart
+    window.compressVideoWithFFmpeg = async (inputData, inputName, onProgress) => {
+      if (!window.__FFMPEG_LOADED) {
+        await window.loadFFmpeg();
+      }
+
+      const ffmpeg = window.__ffmpeg;
+      const fetchFile = window.__ffmpeg_fetchFile;
+
+      // Write input file
+      ffmpeg.FS('writeFile', inputName, inputData);
+
+      // Progress listener
+      if (onProgress) {
+        ffmpeg.on('progress', ({ progress }) => {
+          onProgress(Math.round(progress * 100));
+        });
+      }
+
+      // ffmpeg command: H.264 720p CRF 28, AAC 128kbps
+      // -crf 28: quality balance (lower = better quality, higher = smaller)
+      // -preset fast: encoding speed vs compression tradeoff
+      // -movflags +faststart: web-optimized MP4 (can play while downloading)
+      // -vf scale=-2:720: maintain aspect ratio, height divisible by 2 (x264 requirement)
+      await ffmpeg.run(
+        '-i', inputName,
+        '-c:v', 'libx264',
+        '-crf', '28',
+        '-preset', 'fast',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-vf', 'scale=-2:720',
+        '-movflags', '+faststart',
+        '-y', // overwrite output
+        'output.mp4'
+      );
+
+      // Read output
+      const outputData = ffmpeg.FS('readFile', 'output.mp4');
+
+      // Cleanup
+      ffmpeg.FS('deleteFile', inputName);
+      ffmpeg.FS('deleteFile', 'output.mp4');
+
+      return outputData;
+    };
+
+    // Check if ffmpeg.wasm is available
+    window.ffmpegAvailable = async () => {
+      try {
+        await window.loadFFmpeg();
+        return true;
+      } catch {
+        return false;
+      }
+    };
+  </script>
+
+  <!-- Browser image compression helper -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@1.1.2/dist/browser-image-compression.js"></script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

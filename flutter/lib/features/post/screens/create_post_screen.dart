@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../controllers/post_controller.dart';
@@ -117,10 +118,20 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: widget.mediaType == 'photo'
-                    ? Image.file(
-                        File(widget.mediaPath),
-                        fit: BoxFit.cover,
-                      )
+                    ? (kIsWeb && widget.mediaPath.startsWith('blob:')
+                        ? Image.network(
+                            widget.mediaPath,
+                            fit: BoxFit.cover,
+                            errorBuilder: (ctx, _, _) => const Icon(
+                              Icons.broken_image,
+                              color: Colors.white54,
+                              size: 64,
+                            ),
+                          )
+                        : Image.file(
+                            File(widget.mediaPath),
+                            fit: BoxFit.cover,
+                          ))
                     : Container(
                         color: const Color(0xFF1A1A1A),
                         child: const Center(

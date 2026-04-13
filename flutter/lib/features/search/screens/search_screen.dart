@@ -160,7 +160,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
           onTap: () {
-            context.push('/profile/${r.id}');
+            context.push('/profile?userId=${r.id}');
           },
         );
       },

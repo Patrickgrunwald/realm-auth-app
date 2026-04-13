@@ -6,6 +6,7 @@ import '../../features/auth/screens/splash_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
+import '../../features/auth/screens/confirm_signup_screen.dart';
 import '../../features/feed/screens/feed_screen.dart';
 import '../../features/feed/screens/post_detail_screen.dart';
 import '../../features/post/models/post_model.dart';
@@ -29,7 +30,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (location == '/') return null;
 
-      const publicRoutes = ['/login', '/register', '/forgot-password'];
+      const publicRoutes = ['/login', '/register', '/forgot-password', '/confirm-signup'];
       final isPublicRoute = publicRoutes.contains(location);
 
       if (isLoading) return null;
@@ -60,6 +61,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/confirm-signup',
+        builder: (context, state) => const ConfirmSignupScreen(),
       ),
 
       // ── Main App (mit Bottom Nav) ──
