@@ -168,6 +168,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return const SizedBox.shrink();
   }
 
+  bool _canSubmit(AuthState authState) {
+    if (authState.isLoading) return false;
+    // Username muss geprüft und verfügbar sein
+    if (_usernameAvailable != true) return false;
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
@@ -338,7 +345,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: authState.isLoading ? null : _handleRegister,
+                    onPressed: _canSubmit(authState)
+                        ? _handleRegister
+                        : null,
                     child: authState.isLoading
                         ? const SizedBox(
                             width: 22,
