@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:video_compress/video_compress.dart';
 
-/// Generates a thumbnail from a video file.
-/// On web, returns null (handled by Supabase auto-thumbnail).
+/// Generates a JPEG thumbnail from a video at the 1-second mark.
+/// On web, returns null (handled by Supabase auto-thumbnail or UI placeholder).
 class VideoThumbnail {
   /// Generate a JPEG thumbnail from a video at the 1-second mark.
   /// Returns JPEG bytes, or null on web / if it fails.
@@ -13,7 +13,7 @@ class VideoThumbnail {
       final data = await VideoCompress.getByteThumbnail(
         filePath,
         quality: 50,
-        position: 1000,
+        position: 1000, // 1 second into video
       );
       return data;
     } catch (_) {
