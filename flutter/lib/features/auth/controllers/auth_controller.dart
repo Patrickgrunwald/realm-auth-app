@@ -62,7 +62,7 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> _loadUserProfile(String userId) async {
     try {
       final data = await SupabaseService.client
-          .from(AppConstants.profilesTable)
+          .from(AppConstants.usersTable)
           .select()
           .eq('id', userId)
           .single();
@@ -117,7 +117,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       // Benutzername-Unique-Check
       final existing = await SupabaseService.client
-          .from(AppConstants.profilesTable)
+          .from(AppConstants.usersTable)
           .select('id')
           .eq('username', username.trim())
           .maybeSingle();
@@ -137,14 +137,8 @@ class AuthController extends StateNotifier<AuthState> {
       );
 
       if (response.user != null) {
-        // Profil anlegen
-        await SupabaseService.client.from(AppConstants.profilesTable).insert({
-          'id': response.user!.id,
-          'username': username.trim(),
-          'email': email.trim(),
-          'is_admin': false,
-          'created_at': DateTime.now().toIso8601String(),
-        });
+        // User wird AUTOMATISCH vom DB-Trigger handle_new_user() angelegt
+        // Hier nur noch lokales Profil laden
         await _loadUserProfile(response.user!.id);
         state = state.copyWith(isLoading: false);
         return true;
@@ -204,7 +198,7 @@ class AuthController extends StateNotifier<AuthState> {
   Future<bool> checkUsernameAvailable(String username) async {
     try {
       final existing = await SupabaseService.client
-          .from(AppConstants.profilesTable)
+          .from(AppConstants.usersTable)
           .select('id')
           .eq('username', username.trim())
           .maybeSingle();

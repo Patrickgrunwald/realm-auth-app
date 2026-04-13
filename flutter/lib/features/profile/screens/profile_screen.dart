@@ -159,7 +159,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                     // Posts-Grid
                     PostsGrid(
-                      posts: const [], // TODO: Posts laden
+                      posts: state.posts,
                       onPostTap: (post) {
                         debugPrint('[Profile] Post tapped: ${post.id}');
                       },

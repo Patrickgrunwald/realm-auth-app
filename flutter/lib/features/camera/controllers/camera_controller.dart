@@ -61,6 +61,7 @@ class CameraNotifier extends StateNotifier<CameraState> {
   Timer? _recordingTimer;
 
   List<CameraDescription> get cameras => _cameras;
+  int get currentCameraIndex => _currentCameraIndex;
   CameraController? get controller => _controller;
 
   Future<void> init() async {

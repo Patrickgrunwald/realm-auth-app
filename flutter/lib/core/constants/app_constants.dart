@@ -18,14 +18,17 @@ class AppConstants {
   static const int maxImageSizeMB = 10;
 
   // Supabase Tabellen
-  static const String profilesTable = 'profiles';
+  static const String usersTable = 'users';
   static const String postsTable = 'posts';
   static const String likesTable = 'likes';
   static const String commentsTable = 'comments';
   static const String followsTable = 'follows';
+  static const String eaReportsTable = 'ea_reports';
+  static const String notificationsTable = 'notifications';
   static const String storageVideosBucket = 'videos';
   static const String storageAvatarsBucket = 'avatars';
   static const String storageThumbnailsBucket = 'thumbnails';
+  static const String storagePostsBucket = 'posts';
 
   // Debounce
   static const Duration usernameCheckDebounce = Duration(milliseconds: 600);

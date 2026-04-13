@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
-import '../feed/screens/feed_screen.dart';
 import '../camera/screens/camera_screen.dart';
-import '../profile/screens/profile_screen.dart';
 
 /// Haupt-Navigation Shell mit Bottom Navigation Bar.
 /// Feed | Kamera | Profil

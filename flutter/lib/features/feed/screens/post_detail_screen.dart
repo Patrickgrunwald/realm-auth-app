@@ -7,6 +7,8 @@ import 'package:video_player/video_player.dart';
 import '../../post/models/post_model.dart';
 import '../../post/widgets/ea_badge.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../data/services/supabase_service.dart';
 import '../widgets/interaction_bar.dart';
 
 class PostDetailScreen extends ConsumerStatefulWidget {
@@ -26,27 +28,87 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   ChewieController? _chewieController;
   bool _videoInitialized = false;
 
-  // Mock comments
-  final List<_MockComment> _comments = [
-    _MockComment(
-        username: 'user_42',
-        text: 'Wunderschön! 😍',
-        time: const Duration(minutes: 30)),
-    _MockComment(
-        username: 'laura_m',
-        text: 'Wo wurde das aufgenommen?',
-        time: const Duration(hours: 1)),
-    _MockComment(
-        username: 'bergfan_2024',
-        text: 'Mega Foto!',
-        time: const Duration(hours: 2)),
-  ];
+  // Real comments from Supabase
+  List<CommentItem> _comments = [];
+  bool _isLoadingComments = false;
+  bool _isPostingComment = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.post.type == 'video') {
       _initVideo();
+    }
+    _loadComments();
+  }
+
+  Future<void> _loadComments() async {
+    setState(() => _isLoadingComments = true);
+    try {
+      final data = await SupabaseService.client
+          .from(AppConstants.commentsTable)
+          .select('*, users:user_id(id, username, display_name, avatar_url)')
+          .eq('post_id', widget.post.id)
+          .order('created_at', ascending: true);
+
+      setState(() {
+        _comments = data.map((raw) {
+          final user = raw['users'] as Map<String, dynamic>?;
+          return CommentItem(
+            id: raw['id'] as String,
+            userId: raw['user_id'] as String,
+            username: user?['username'] as String? ?? 'unknown',
+            displayName: user?['display_name'] as String? ?? '',
+            avatarUrl: user?['avatar_url'] as String?,
+            content: raw['content'] as String,
+            createdAt: DateTime.parse(raw['created_at'] as String),
+          );
+        }).toList();
+        _isLoadingComments = false;
+      });
+    } catch (e) {
+      debugPrint('[PostDetail] loadComments error: $e');
+      setState(() => _isLoadingComments = false);
+    }
+  }
+
+  Future<void> _postComment() async {
+    final text = _commentController.text.trim();
+    if (text.isEmpty) return;
+    final user = SupabaseService.client.auth.currentUser;
+    if (user == null) return;
+
+    setState(() => _isPostingComment = true);
+    try {
+      final result = await SupabaseService.client
+          .from(AppConstants.commentsTable)
+          .insert({
+            'post_id': widget.post.id,
+            'user_id': user.id,
+            'content': text,
+          })
+          .select('*, users:user_id(id, username, display_name, avatar_url)')
+          .single();
+
+      final userData = result['users'] as Map<String, dynamic>?;
+      final newComment = CommentItem(
+        id: result['id'] as String,
+        userId: result['user_id'] as String,
+        username: userData?['username'] as String? ?? 'unknown',
+        displayName: userData?['display_name'] as String? ?? '',
+        avatarUrl: userData?['avatar_url'] as String?,
+        content: result['content'] as String,
+        createdAt: DateTime.parse(result['created_at'] as String),
+      );
+
+      setState(() {
+        _comments = [..._comments, newComment];
+        _commentController.clear();
+        _isPostingComment = false;
+      });
+    } catch (e) {
+      debugPrint('[PostDetail] postComment error: $e');
+      setState(() => _isPostingComment = false);
     }
   }
 
@@ -75,18 +137,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     _chewieController?.dispose();
     _videoController?.dispose();
     super.dispose();
-  }
-
-  void _submitComment() {
-    final text = _commentController.text.trim();
-    if (text.isEmpty) return;
-    setState(() {
-      _comments.insert(
-          0, _MockComment(username: 'ich', text: text, time: Duration.zero));
-    });
-    _commentController.clear();
-    FocusScope.of(context).unfocus();
-    debugPrint('[PostDetailScreen] new comment: $text');
   }
 
   @override
@@ -154,14 +204,29 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
                   const SizedBox(height: 8),
 
-                  // Comments list
-                  ListView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: _comments.length,
-                    itemBuilder: (context, index) =>
-                        _CommentTile(comment: _comments[index]),
-                  ),
+                  // Loading or comments list
+                  if (_isLoadingComments)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.accent,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    ListView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      itemCount: _comments.length,
+                      itemBuilder: (context, index) =>
+                          _CommentTile(comment: _comments[index]),
+                    ),
 
                   const SizedBox(height: 16),
                 ],
@@ -172,7 +237,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           // Comment input
           _CommentInput(
             controller: _commentController,
-            onSubmit: _submitComment,
+            onSubmit: _postComment,
+            isPosting: _isPostingComment,
           ),
         ],
       ),
@@ -316,18 +382,11 @@ class _DetailCaption extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _CommentTile extends StatelessWidget {
-  final _MockComment comment;
+  final CommentItem comment;
   const _CommentTile({required this.comment});
 
   @override
   Widget build(BuildContext context) {
-    final timeText = comment.time == Duration.zero
-        ? 'Gerade eben'
-        : timeago.format(
-            DateTime.now().subtract(comment.time),
-            locale: 'de',
-          );
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -336,8 +395,13 @@ class _CommentTile extends StatelessWidget {
           CircleAvatar(
             radius: 14,
             backgroundColor: AppColors.surfaceVariant,
+            backgroundImage: comment.avatarUrl != null
+                ? CachedNetworkImageProvider(comment.avatarUrl!)
+                : null,
             child: Text(
-              comment.username[0].toUpperCase(),
+              comment.username.isNotEmpty
+                  ? comment.username[0].toUpperCase()
+                  : '?',
               style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 12,
@@ -362,7 +426,7 @@ class _CommentTile extends StatelessWidget {
                         ),
                       ),
                       TextSpan(
-                        text: comment.text,
+                        text: comment.content,
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 13,
@@ -373,7 +437,7 @@ class _CommentTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  timeText,
+                  timeago.format(comment.createdAt, locale: 'de'),
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 11,
@@ -393,8 +457,13 @@ class _CommentTile extends StatelessWidget {
 class _CommentInput extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSubmit;
+  final bool isPosting;
 
-  const _CommentInput({required this.controller, required this.onSubmit});
+  const _CommentInput({
+    required this.controller,
+    required this.onSubmit,
+    this.isPosting = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -430,14 +499,23 @@ class _CommentInput extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: onSubmit,
+            onTap: isPosting ? null : onSubmit,
             child: Container(
               padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: AppColors.accent,
+              decoration: BoxDecoration(
+                color: isPosting ? AppColors.textDisabled : AppColors.accent,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.send, color: Colors.white, size: 18),
+              child: isPosting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.send, color: Colors.white, size: 18),
             ),
           ),
         ],
@@ -448,9 +526,25 @@ class _CommentInput extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 
-class _MockComment {
+/// Real comment model (replaces _MockComment)
+class CommentItem {
+  final String id;
+  final String userId;
   final String username;
-  final String text;
-  final Duration time;
-  _MockComment({required this.username, required this.text, required this.time});
+  final String displayName;
+  final String? avatarUrl;
+  final String content;
+  final DateTime createdAt;
+
+  CommentItem({
+    required this.id,
+    required this.userId,
+    required this.username,
+    required this.displayName,
+    this.avatarUrl,
+    required this.content,
+    required this.createdAt,
+  });
 }
+
+// ---------------------------------------------------------------------------

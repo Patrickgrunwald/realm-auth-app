@@ -1,35 +1,69 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../data/services/supabase_service.dart';
 
-class EANotifier extends StateNotifier<EAModerationState> {
-  EANotifier() : super(const EAModerationState());
+class EaState {
+  final bool isLoading;
+  final String? error;
+  final bool reportSent;
 
-  Future<bool> reportPost(String postId, {String? reason}) async {
-    final userId = SupabaseService.client.auth.currentUser?.id;
-    if (userId == null) return false;
+  const EaState({
+    this.isLoading = false,
+    this.error,
+    this.reportSent = false,
+  });
 
-    // TODO: Supabase upsert
-    // await SupabaseService.client.from('ea_reports').upsert({
-    //   'post_id': postId,
-    //   'reporter_id': userId,
-    //   'reason': reason,
-    // });
-
-    print('[EA] Report: postId=$postId reason=$reason');
-    return true;
+  EaState copyWith({
+    bool? isLoading,
+    String? error,
+    bool? reportSent,
+  }) {
+    return EaState(
+      isLoading: isLoading ?? this.isLoading,
+      error: error ?? this.error,
+      reportSent: reportSent ?? this.reportSent,
+    );
   }
 }
 
-class EAModerationState {
-  final bool isLoading;
-  final String? error;
+class EaNotifier extends StateNotifier<EaState> {
+  EaNotifier() : super(const EaState());
 
-  const EAModerationState({
-    this.isLoading = false,
-    this.error,
-  });
+  Future<void> reportPost({
+    required String postId,
+    required String reason,
+    String? description,
+  }) async {
+    if (state.isLoading) return;
+
+    state = state.copyWith(isLoading: true, error: null, reportSent: false);
+
+    try {
+      final userId = SupabaseService.client.auth.currentUser?.id;
+
+      await SupabaseService.client
+          .from(AppConstants.eaReportsTable)
+          .insert({
+            if (userId != null) 'reporter_id': userId,
+            'post_id': postId,
+            'reason': reason,
+            'description': description,
+          });
+
+      state = state.copyWith(isLoading: false, reportSent: true);
+    } catch (e) {
+      debugPrint('[EaController] reportPost error: $e');
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  void reset() {
+    state = const EaState();
+  }
 }
 
-final eaControllerProvider = StateNotifierProvider<EANotifier, EAModerationState>((ref) {
-  return EANotifier();
+final eaControllerProvider =
+    StateNotifierProvider<EaNotifier, EaState>((ref) {
+  return EaNotifier();
 });

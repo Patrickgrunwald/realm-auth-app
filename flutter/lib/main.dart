@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'data/services/supabase_service.dart';
 import 'app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load .env file
+  await dotenv.load(fileName: ".env");
 
   // German locale for timeago
   timeago.setLocaleMessages('de', timeago.DeMessages());
@@ -28,14 +32,8 @@ Future<void> main() async {
   ]);
 
   // Supabase initialisieren
-  const supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: 'https://placeholder.supabase.co',
-  );
-  const supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: 'placeholder_anon_key',
-  );
+  final supabaseUrl = dotenv.env['SUPABASE_URL']!;
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']!;
 
   await SupabaseService.initialize(
     url: supabaseUrl,

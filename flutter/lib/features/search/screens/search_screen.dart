@@ -1,6 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../data/services/supabase_service.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -35,19 +39,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _query = q;
     });
 
-    // TODO: Supabase Suche
-    // final users = await SupabaseService.client
-    //   .from('users')
-    //   .select()
-    //   .ilike('username', '%$q%')
-    //   .limit(20);
+    try {
+      final data = await SupabaseService.client
+          .from(AppConstants.usersTable)
+          .select('id, username, display_name, avatar_url')
+          .or('username.ilike.%$q%,display_name.ilike.%$q%')
+          .limit(20);
 
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    setState(() {
-      _isLoading = false;
-      _results = [];
-    });
+      setState(() {
+        _results = data.map((raw) => _SearchResult(
+          id: raw['id'] as String,
+          username: raw['username'] as String? ?? '',
+          displayName: raw['display_name'] as String? ?? '',
+          avatarUrl: raw['avatar_url'] as String?,
+        )).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('[SearchScreen] search error: $e');
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -129,10 +140,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           leading: CircleAvatar(
             radius: 20,
             backgroundColor: AppColors.primaryLight,
-            child: Text(
-              r.username[0].toUpperCase(),
-              style: const TextStyle(color: AppColors.textPrimary),
-            ),
+            backgroundImage: r.avatarUrl != null
+                ? CachedNetworkImageProvider(r.avatarUrl!)
+                : null,
+            child: r.avatarUrl == null
+                ? Text(
+                    r.username.isNotEmpty ? r.username[0].toUpperCase() : '?',
+                    style: const TextStyle(color: AppColors.textPrimary),
+                  )
+                : null,
           ),
           title: Text(
             r.username,
@@ -144,7 +160,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
           onTap: () {
-            debugPrint('[Search] tapped: ${r.username}');
+            context.push('/profile/${r.id}');
           },
         );
       },

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../data/services/supabase_service.dart';
 import '../../post/models/post_model.dart';
 
 // ---------------------------------------------------------------------------
@@ -48,132 +50,94 @@ class FeedState {
 }
 
 // ---------------------------------------------------------------------------
-// Mock data
+// Post loading helpers
 // ---------------------------------------------------------------------------
 
-List<PostModel> _buildMockPosts() {
-  final now = DateTime.now();
-  return [
-    PostModel(
-      id: 'post-001',
-      userId: 'user-001',
-      type: 'photo',
-      mediaUrl:
-          'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800',
-      caption:
-          'Morgens in den Bergen — nichts schlägt das 🌄',
-      isEaContent: false,
-      reportStatus: 'none',
-      likesCount: 1243,
-      commentsCount: 48,
-      sharesCount: 12,
-      createdAt: now.subtract(const Duration(hours: 2)),
-      username: 'bergfotograf',
-      displayName: 'Max Bergmann',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=96',
-      isLikedByMe: false,
-    ),
-    PostModel(
-      id: 'post-002',
-      userId: 'user-002',
-      type: 'video',
-      mediaUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      thumbnailUrl:
-          'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800',
-      caption: 'Dieses Video wurde mit KI erstellt 🤖',
-      isEaContent: true,
-      isAiConfirmed: true,
-      reportStatus: 'confirmed',
-      eaReportCount: 15,
-      likesCount: 892,
-      commentsCount: 103,
-      sharesCount: 56,
-      createdAt: now.subtract(const Duration(hours: 5)),
-      username: 'ai_creator',
-      displayName: 'AI Creator',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=96',
-      isLikedByMe: true,
-    ),
-    PostModel(
-      id: 'post-003',
-      userId: 'user-003',
-      type: 'photo',
-      mediaUrl:
-          'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800',
-      caption: 'Neues Sofa — endlich ein gemütliches Wohnzimmer 🛋️ #interior',
-      reportStatus: 'none',
-      likesCount: 421,
-      commentsCount: 19,
-      sharesCount: 4,
-      createdAt: now.subtract(const Duration(hours: 8)),
-      username: 'interior_anna',
-      displayName: 'Anna K.',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=96',
-      isLikedByMe: false,
-    ),
-    PostModel(
-      id: 'post-004',
-      userId: 'user-004',
-      type: 'photo',
-      mediaUrl:
-          'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800',
-      caption: 'Street food at its finest 🍜',
-      reportStatus: 'pending',
-      isEaContent: true,
-      eaReportCount: 3,
-      likesCount: 2100,
-      commentsCount: 77,
-      sharesCount: 88,
-      createdAt: now.subtract(const Duration(hours: 12)),
-      username: 'foodie_paul',
-      displayName: 'Paul F.',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=96',
-      isLikedByMe: false,
-    ),
-    PostModel(
-      id: 'post-005',
-      userId: 'user-005',
-      type: 'video',
-      mediaUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-      thumbnailUrl:
-          'https://images.unsplash.com/photo-1518791841217-8f162f1912da?w=800',
-      caption: 'Tutorial: Flutter Animation in 60 Sekunden ⚡',
-      reportStatus: 'none',
-      likesCount: 3412,
-      commentsCount: 214,
-      sharesCount: 301,
-      createdAt: now.subtract(const Duration(hours: 20)),
-      username: 'flutter_dev',
-      displayName: 'Dev Sara',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=96',
-      isLikedByMe: false,
-    ),
-    PostModel(
-      id: 'post-006',
-      userId: 'user-006',
-      type: 'photo',
-      mediaUrl:
-          'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=800',
-      caption: 'Natur pur 🌿 #wanderlust #nature',
-      reportStatus: 'none',
-      likesCount: 654,
-      commentsCount: 31,
-      sharesCount: 7,
-      createdAt: now.subtract(const Duration(days: 1)),
-      username: 'naturlover',
-      displayName: 'Lena Grün',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=96',
-      isLikedByMe: true,
-    ),
-  ];
+/// Build PostModel list from raw rows, merging user data and like status.
+List<PostModel> _buildPostModels(List<Map<String, dynamic>> rawPosts,
+    Map<String, bool> likedMap) {
+  return rawPosts.map((raw) {
+    final userMap = raw['users'] as Map<String, dynamic>?;
+    return PostModel.fromJson({
+      ...Map<String, dynamic>.from(raw),
+      'username': userMap?['username'],
+      'display_name': userMap?['display_name'],
+      'avatar_url': userMap?['avatar_url'],
+      'is_liked_by_me': likedMap[raw['id']] ?? false,
+    });
+  }).toList();
+}
+
+/// Load FYP posts (all non-deleted, non-confirmed posts ordered by newest).
+Future<List<PostModel>> _loadFypPosts({
+  required int limit,
+  required int offset,
+}) async {
+  final client = SupabaseService.client;
+  final currentUid = client.auth.currentUser?.id;
+
+  final postsData = await client
+      .from(AppConstants.postsTable)
+      .select('*, users:user_id(username, display_name, avatar_url)')
+      .filter('deleted_at', 'is', 'null')
+      .neq('report_status', 'confirmed')
+      .order('created_at', ascending: false)
+      .range(offset, offset + limit - 1);
+
+  if (postsData.isEmpty) return [];
+
+  Map<String, bool> likedMap = {};
+  if (currentUid != null) {
+    final postIds = postsData.map((p) => p['id'] as String).toList();
+    final likesData = await client
+        .from(AppConstants.likesTable)
+        .select('post_id')
+        .eq('user_id', currentUid)
+        .inFilter('post_id', postIds);
+    likedMap = {for (var l in likesData) l['post_id'] as String: true};
+  }
+
+  return _buildPostModels(postsData.cast<Map<String, dynamic>>(), likedMap);
+}
+
+/// Load following feed posts.
+Future<List<PostModel>> _loadFollowingPosts({
+  required int limit,
+  required int offset,
+}) async {
+  final client = SupabaseService.client;
+  final currentUid = client.auth.currentUser?.id;
+  if (currentUid == null) return [];
+
+  final followsData = await client
+      .from(AppConstants.followsTable)
+      .select('following_id')
+      .eq('follower_id', currentUid);
+
+  final followingIds =
+      followsData.map((f) => f['following_id'] as String).toList();
+  if (followingIds.isEmpty) return [];
+
+  final postsData = await client
+      .from(AppConstants.postsTable)
+      .select('*, users:user_id(username, display_name, avatar_url)')
+      .inFilter('user_id', followingIds)
+      .filter('deleted_at', 'is', 'null')
+      .neq('report_status', 'confirmed')
+      .order('created_at', ascending: false)
+      .range(offset, offset + limit - 1);
+
+  if (postsData.isEmpty) return [];
+
+  Map<String, bool> likedMap = {};
+  final likesData = await client
+      .from(AppConstants.likesTable)
+      .select('post_id')
+      .eq('user_id', currentUid)
+      .inFilter('post_id', postsData.map((p) => p['id'] as String).toList());
+  likedMap = {for (var l in likesData) l['post_id'] as String: true};
+
+  return _buildPostModels(postsData.cast<Map<String, dynamic>>(), likedMap);
 }
 
 // ---------------------------------------------------------------------------
@@ -196,11 +160,9 @@ class FeedController extends StateNotifier<FeedState> {
     state = state.copyWith(isLoadingFyp: true, error: null);
 
     try {
-      // TODO: replace with real Supabase query from 06_FEED.md
-      debugPrint('[FeedController] fetchFYPPosts — using mock data');
-      await Future.delayed(const Duration(milliseconds: 600));
-
-      final posts = _buildMockPosts();
+      final offset = refresh ? 0 : state.fypPosts.length;
+      final posts = await _loadFypPosts(limit: _pageSize, offset: offset);
+      debugPrint('[FeedController] fetchFYPPosts → ${posts.length} posts');
       state = state.copyWith(
         fypPosts: refresh ? posts : [...state.fypPosts, ...posts],
         isLoadingFyp: false,
@@ -217,17 +179,22 @@ class FeedController extends StateNotifier<FeedState> {
   Future<void> fetchFollowingPosts({bool refresh = false}) async {
     if (state.isLoadingFollowing) return;
 
+    final currentUid = SupabaseService.client.auth.currentUser?.id;
+    if (currentUid == null) {
+      state = state.copyWith(
+        followingPosts: [],
+        isLoadingFollowing: false,
+        hasMoreFollowing: false,
+      );
+      return;
+    }
+
     state = state.copyWith(isLoadingFollowing: true, error: null);
 
     try {
-      // TODO: replace with real Supabase query from 06_FEED.md
-      debugPrint('[FeedController] fetchFollowingPosts — using mock data');
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      // Following: subset of mock posts, chronological
-      final posts = _buildMockPosts().reversed
-          .take(3)
-          .toList();
+      final offset = refresh ? 0 : state.followingPosts.length;
+      final posts = await _loadFollowingPosts(limit: _pageSize, offset: offset);
+      debugPrint('[FeedController] fetchFollowingPosts → ${posts.length} posts');
       state = state.copyWith(
         followingPosts: refresh ? posts : [...state.followingPosts, ...posts],
         isLoadingFollowing: false,
@@ -235,7 +202,8 @@ class FeedController extends StateNotifier<FeedState> {
       );
     } catch (e) {
       debugPrint('[FeedController] fetchFollowingPosts error: $e');
-      state = state.copyWith(isLoadingFollowing: false, error: e.toString());
+      state = state.copyWith(
+          isLoadingFollowing: false, error: e.toString());
     }
   }
 
@@ -243,13 +211,13 @@ class FeedController extends StateNotifier<FeedState> {
 
   Future<void> loadMoreFYP() async {
     if (!state.hasMoreFyp || state.isLoadingFyp) return;
-    debugPrint('[FeedController] loadMoreFYP — cursor pagination');
+    debugPrint('[FeedController] loadMoreFYP');
     await fetchFYPPosts();
   }
 
   Future<void> loadMoreFollowing() async {
     if (!state.hasMoreFollowing || state.isLoadingFollowing) return;
-    debugPrint('[FeedController] loadMoreFollowing — cursor pagination');
+    debugPrint('[FeedController] loadMoreFollowing');
     await fetchFollowingPosts();
   }
 
@@ -271,44 +239,110 @@ class FeedController extends StateNotifier<FeedState> {
 
   Future<void> toggleLike(String postId) async {
     debugPrint('[FeedController] toggleLike: $postId');
+    final currentUid = SupabaseService.client.auth.currentUser?.id;
+    if (currentUid == null) return;
 
-    // Optimistic update in FYP
-    final fypIndex = state.fypPosts.indexWhere((p) => p.id == postId);
-    if (fypIndex != -1) {
-      final post = state.fypPosts[fypIndex];
-      final updated = post.copyWith(
-        isLikedByMe: !post.isLikedByMe,
-        likesCount: post.isLikedByMe
-            ? post.likesCount - 1
-            : post.likesCount + 1,
-      );
-      final newList = [...state.fypPosts];
-      newList[fypIndex] = updated;
-      state = state.copyWith(fypPosts: newList);
+    // Determine current state and which list has the post
+    bool isLiked = false;
+    bool inFyp = state.fypPosts.any((p) => p.id == postId);
+    bool inFollowing = state.followingPosts.any((p) => p.id == postId);
+
+    if (inFyp) {
+      isLiked = state.fypPosts.firstWhere((p) => p.id == postId).isLikedByMe;
+    } else if (inFollowing) {
+      isLiked = state.followingPosts.firstWhere((p) => p.id == postId).isLikedByMe;
+    } else {
+      return;
     }
 
-    // Optimistic update in Following
-    final flwIndex = state.followingPosts.indexWhere((p) => p.id == postId);
-    if (flwIndex != -1) {
-      final post = state.followingPosts[flwIndex];
-      final updated = post.copyWith(
-        isLikedByMe: !post.isLikedByMe,
-        likesCount: post.isLikedByMe
-            ? post.likesCount - 1
-            : post.likesCount + 1,
+    final newLikedState = !isLiked;
+
+    // Optimistic update
+    if (inFyp) {
+      final idx = state.fypPosts.indexWhere((p) => p.id == postId);
+      final post = state.fypPosts[idx];
+      final newList = [...state.fypPosts];
+      newList[idx] = post.copyWith(
+        isLikedByMe: newLikedState,
+        likesCount: isLiked ? post.likesCount - 1 : post.likesCount + 1,
       );
+      state = state.copyWith(fypPosts: newList);
+    }
+    if (inFollowing) {
+      final idx = state.followingPosts.indexWhere((p) => p.id == postId);
+      final post = state.followingPosts[idx];
       final newList = [...state.followingPosts];
-      newList[flwIndex] = updated;
+      newList[idx] = post.copyWith(
+        isLikedByMe: newLikedState,
+        likesCount: isLiked ? post.likesCount - 1 : post.likesCount + 1,
+      );
       state = state.copyWith(followingPosts: newList);
     }
 
-    // TODO: persist to Supabase (likes table upsert / delete)
+    // Persist to Supabase and refresh count from DB
+    try {
+      if (newLikedState) {
+        await SupabaseService.client.from(AppConstants.likesTable).upsert({
+          'user_id': currentUid,
+          'post_id': postId,
+        });
+      } else {
+        await SupabaseService.client
+            .from(AppConstants.likesTable)
+            .delete()
+            .eq('user_id', currentUid)
+            .eq('post_id', postId);
+      }
+      // Refresh count from DB (DB trigger maintains likes_count on posts table)
+      await _refreshLikeCount(postId);
+    } catch (e) {
+      debugPrint('[FeedController] toggleLike persist error: $e');
+    }
+  }
+
+  Future<void> _refreshLikeCount(String postId) async {
+    try {
+      final data = await SupabaseService.client
+          .from(AppConstants.postsTable)
+          .select('likes_count')
+          .eq('id', postId)
+          .maybeSingle();
+      if (data == null) return;
+      final dbCount = data['likes_count'] as int? ?? 0;
+
+      List<PostModel>? newFyp;
+      List<PostModel>? newFollowing;
+
+      final fypIdx = state.fypPosts.indexWhere((p) => p.id == postId);
+      if (fypIdx != -1) {
+        final post = state.fypPosts[fypIdx];
+        final updated = [...state.fypPosts];
+        updated[fypIdx] = post.copyWith(likesCount: dbCount);
+        newFyp = updated;
+      }
+
+      final followingIdx = state.followingPosts.indexWhere((p) => p.id == postId);
+      if (followingIdx != -1) {
+        final post = state.followingPosts[followingIdx];
+        final updated = [...state.followingPosts];
+        updated[followingIdx] = post.copyWith(likesCount: dbCount);
+        newFollowing = updated;
+      }
+
+      if (newFyp != null || newFollowing != null) {
+        state = state.copyWith(
+          fypPosts: newFyp ?? state.fypPosts,
+          followingPosts: newFollowing ?? state.followingPosts,
+        );
+      }
+    } catch (_) {
+      // Silently fail — count will be correct on next refresh
+    }
   }
 
   // --- Share -----------------------------------------------------------------
 
   void sharePost(String postId) {
-    // TODO: integrate share_plus when added to pubspec
     debugPrint('[FeedController] sharePost: $postId');
   }
 }

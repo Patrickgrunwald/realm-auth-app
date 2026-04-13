@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../controllers/ea_controller.dart';
 
 /// Bottom Sheet zum Melden eines Posts als KI-generiert.
 /// Wird auf jedem Post über das Menü (⋮) aufgerufen.
@@ -40,17 +41,12 @@ class _EAReportSheetState extends ConsumerState<_EAReportSheet> {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
 
-    // TODO: EA Report an Supabase senden
-    // await ref.read(eaControllerProvider.notifier).reportPost(
-    //   widget.postId,
-    //   reason: _selectedReason ?? _reasonController.text,
-    // );
+    await ref.read(eaControllerProvider.notifier).reportPost(
+      postId: widget.postId,
+      reason: _selectedReason ?? _reasonController.text,
+    );
 
-    print('[EA Report] postId=${widget.postId} reason=$_selectedReason');
-
-    setState(() => _isSubmitting = false);
-
-    if (!context.mounted) return;
+    if (!mounted) return;
     Navigator.pop(context);
 
     ScaffoldMessenger.of(context).showSnackBar(

@@ -12,6 +12,8 @@ import '../../features/post/models/post_model.dart';
 import '../../features/camera/screens/camera_screen.dart';
 import '../../features/post/screens/create_post_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/search/screens/search_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/shell/main_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
