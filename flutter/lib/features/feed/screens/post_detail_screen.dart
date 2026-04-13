@@ -268,14 +268,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       imageUrl: widget.post.mediaUrl,
       width: double.infinity,
       fit: BoxFit.cover,
-      placeholder: (_, __) => Container(
+      placeholder: (context, url) => Container(
         height: 300,
         color: AppColors.surface,
         child: const Center(
           child: CircularProgressIndicator(color: AppColors.accent),
         ),
       ),
-      errorWidget: (_, __, ___) => Container(
+      errorWidget: (context, exception, stackTrace) => Container(
         height: 300,
         color: AppColors.surface,
         child: const Center(

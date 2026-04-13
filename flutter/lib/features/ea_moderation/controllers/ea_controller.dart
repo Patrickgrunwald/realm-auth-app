@@ -45,10 +45,10 @@ class EaNotifier extends StateNotifier<EaState> {
       await SupabaseService.client
           .from(AppConstants.eaReportsTable)
           .insert({
-            if (userId != null) 'reporter_id': userId,
+            'reporter_id': userId,
             'post_id': postId,
             'reason': reason,
-            'description': description,
+            'description': description ?? '',
           });
 
       state = state.copyWith(isLoading: false, reportSent: true);

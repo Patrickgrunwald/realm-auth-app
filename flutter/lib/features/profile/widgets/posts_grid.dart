@@ -64,7 +64,7 @@ class PostsGrid extends StatelessWidget {
                 Image.network(
                   post.mediaUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (context, exception, stackTrace) => Container(
                     color: AppColors.surface,
                   ),
                 )
