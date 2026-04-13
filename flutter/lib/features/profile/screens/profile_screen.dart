@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/services/supabase_service.dart';
@@ -161,7 +162,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     PostsGrid(
                       posts: state.posts,
                       onPostTap: (post) {
-                        debugPrint('[Profile] Post tapped: ${post.id}');
+                        context.push('/post/${post.id}');
                       },
                     ),
 
